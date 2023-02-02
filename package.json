@@ -1,0 +1,26 @@
+{
+  "name": "ico-contract",
+  "version": "1.0.0",
+  "description": "ICO Contract",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/korayakpinar/ico-contract.git"
+  },
+  "author": "Koray Akpınar",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/korayakpinar/ico-contract/issues"
+  },
+  "homepage": "https://github.com/korayakpinar/ico-contract#readme",
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.8.1",
+    "hardhat": "^2.12.6"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^2.0.1"
+  }
+}
