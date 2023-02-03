@@ -4,23 +4,43 @@
 // You can also run a script with `npx hardhat run <script>`. If you do that, Hardhat
 // will compile your contracts, add the Hardhat Runtime Environment's members to the
 // global scope, and execute the script.
+const { ethers } = require("hardhat");
 const hre = require("hardhat");
 
 async function main() {
-  const currentTimestampInSeconds = Math.round(Date.now() / 1000);
-  const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60;
-  const unlockTime = currentTimestampInSeconds + ONE_YEAR_IN_SECS;
 
-  const lockedAmount = hre.ethers.utils.parseEther("1");
+  /*
+  string memory name,
+  string memory symbol,
+  uint256 initialSupply
+  */
+  TokenFactory = await hre.ethers.getContractFactory("TestToken");
+  token = await TokenFactory.deploy("Token", "TKN", ethers.BigNumber.from("1000000000000000000"));
+  await token.deployed();
 
-  const Lock = await hre.ethers.getContractFactory("Lock");
-  const lock = await Lock.deploy(unlockTime, { value: lockedAmount });
+  /*
+  address payable wallet, 
+  IERC20 token, 
+  uint256 rate, 
+  uint256 totalSupply, 
+  uint256 openingTime, 
+  uint256 closingTime, 
+  bool isPrivateSale
+  */
 
-  await lock.deployed();
+  //Get one wallet address
+  const [owner] = await ethers.getSigners();
 
-  console.log(
-    `Lock with 1 ETH and unlock timestamp ${unlockTime} deployed to ${lock.address}`
-  );
+  //Get the current time
+  const now = Math.floor(Date.now() / 1000);
+
+  CrowdsaleFactory = await hre.ethers.getContractFactory("ICO");
+  crowdsale = await CrowdsaleFactory.deploy(owner.address, token.address, 1, ethers.BigNumber.from("1000000000000000000"), now + 60, now + 180, false);
+  await crowdsale.deployed();
+
+  console.log("Token deployed to:", token.address);
+  console.log("Crowdsale deployed to:", crowdsale.address);
+
 }
 
 // We recommend this pattern to be able to use async/await everywhere

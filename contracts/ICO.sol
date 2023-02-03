@@ -3,14 +3,15 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
 //import "hardhat/console.sol";
 
-contract ICO {
+contract ICO is ReentrancyGuard, Ownable {
 
-    //TODO: Add another ERC20 token to be used as a payment method
-    //TODO: Add individual cap for each address
-    //TODO: Add a function to add to and remove from whitelist    
-    //TODO: Add a linear vesting schedule for the token
+    //TODO: Add another ERC20 token to be used as a payment method 
+    //TODO: Add a linear vesting schedule for the token, balanceOf function and remove the transfer function
 
     //Opening and closing time for the ICO
     uint256 private _openingTime;
@@ -20,7 +21,7 @@ contract ICO {
     bool private _isPrivateSale;
 
     //Whitelist of addresses
-    address[] private _whitelist;    
+    mapping(address => bool) private _whitelist;    
 
     // The token being sold
     IERC20 private _token;
@@ -37,6 +38,10 @@ contract ICO {
     // Total supply of token
     uint256 private _totalSupply;
 
+    //Individual contributions and capping
+    mapping(address => uint256) private _contributions;
+    mapping(address => uint256) private _caps;
+
     modifier onlyWhileOpen {
         require(block.timestamp >= _openingTime && block.timestamp <= _closingTime, "ICO is not open");
         _;
@@ -48,7 +53,6 @@ contract ICO {
         require(address(token) != address(0), "Token is the zero address");
         require(openingTime >= block.timestamp);
         require(closingTime > openingTime);
-
 
 
         _wallet = wallet;
@@ -87,21 +91,25 @@ contract ICO {
     function closingTime() public view returns (uint256) {
         return _closingTime;
     }
+    
+    function getCap(address account) public view returns (uint256) {
+        return _caps[account];
+    }
+
+    function getContribution(address account) public view returns (uint256) {
+        return _contributions[account];
+    }
 
     function isPrivateSale() public view returns (bool) {
         return _isPrivateSale;
     }
 
     function isWhitelisted(address account) public view returns (bool) {
-        for (uint i = 0; i < _whitelist.length; i++) {
-            if (_whitelist[i] == account) {
-                return true;
-            }
-        }
-        return false;
+        return _whitelist[account];
+        
     }
 
-    function buyTokens(address beneficiary) public payable onlyWhileOpen {
+    function buyTokens(address beneficiary) public payable onlyWhileOpen nonReentrant {
         if (_isPrivateSale) {
             require(isWhitelisted(beneficiary), "Address is not whitelisted");
         }
@@ -116,10 +124,9 @@ contract ICO {
         _weiRaised += weiAmount;
 
         _processPurchase(beneficiary, tokens);
-        
 
+        _contributions[beneficiary] = _contributions[beneficiary] + weiAmount;
         
-
         _forwardFunds();
        
     }
@@ -131,6 +138,7 @@ contract ICO {
     function _preValidatePurchase(address beneficiary, uint256 weiAmount) internal view {
         require(beneficiary != address(0), "Beneficiary is the zero address");
         require(weiAmount != 0, "WeiAmount is 0");
+        require(_contributions[beneficiary] + weiAmount <= _caps[beneficiary], "Contribution exceeds cap");
         require(_weiRaised + weiAmount > _totalSupply, "Total supply is exceeded");
     }
 
@@ -150,6 +158,27 @@ contract ICO {
         require(_isPrivateSale, "ICO is not private");
         require(block.timestamp >= _openingTime, "ICO is not open");
         _isPrivateSale = false;
+    }
+
+    function addToWhitelist(address account) public {
+        require(_isPrivateSale, "ICO is not private");          // optional
+        require(block.timestamp < _openingTime, "ICO is open"); // optional
+        require(!isWhitelisted(account), "Address is already whitelisted");
+        _whitelist[account] = true;
+    }
+
+    function removeFromWhitelist(address account) public {
+        require(_isPrivateSale, "ICO is not private");          // optional
+        require(block.timestamp < _openingTime, "ICO is open"); // optional
+        require(isWhitelisted(account), "Address is not whitelisted");
+        _whitelist[account] = false;
+    }
+
+    function setCap(address account, uint256 cap) public {
+        require(_isPrivateSale, "ICO is not private");          // optional
+        require(block.timestamp < _openingTime, "ICO is open"); // optional
+        require(isWhitelisted(account), "Address is not whitelisted");
+        _caps[account] = cap;
     }
 
 }
