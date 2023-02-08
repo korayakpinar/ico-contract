@@ -19,13 +19,22 @@ async function main() {
   await token.deployed();
 
   /*
-  address payable wallet, 
-  IERC20 token, 
-  uint256 rate, 
-  uint256 totalSupply, 
-  uint256 openingTime, 
-  uint256 closingTime, 
-  bool isPrivateSale
+  address payable ownerWallet, 
+  IERC20 ownersToken, 
+  uint256 Rate, 
+  uint256 TotalSupply, 
+  uint256 OpeningTime, 
+  uint256 ClosingTime, 
+  bool IsPrivateSale, 
+  bool CapsIsOpen, 
+  uint256 MinCap, 
+  uint256 MaxCap, 
+  uint256 Cliff, 
+  uint256 Start, 
+  uint256 Duration, 
+  uint256 ConversionRate, 
+  IERC20 AnotherERC20Token, 
+  address[] memory Whitelist
   */
 
   //Get one wallet address
@@ -35,7 +44,7 @@ async function main() {
   const now = Math.floor(Date.now() / 1000);
 
   CrowdsaleFactory = await hre.ethers.getContractFactory("ICO");
-  crowdsale = await CrowdsaleFactory.deploy(owner.address, token.address, 1, ethers.BigNumber.from("1000000000000000000"), now + 60, now + 180, false);
+  crowdsale = await CrowdsaleFactory.deploy(owner.address, token.address, 1, ethers.BigNumber.from("1000000000000000000"), now + 60, now + 180, false, false, 0, 0, 0, 0, 0, 0, token.address, [owner.address]);
   await crowdsale.deployed();
 
   console.log("Token deployed to:", token.address);
