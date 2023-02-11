@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.16;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -8,19 +8,16 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 //import "hardhat/console.sol";
 
+//TODO Add events
+
 contract ICO is ReentrancyGuard, Ownable {
 
-    
-    //TODO: Add a linear vesting schedule for the token, balanceOf function and remove the transfer function
-
-    
-
     //Conversion rate for the another ERC20 token
-    struct forAnotherERC20Token {
+    struct ForAnotherERC20Token {
         uint256 _conversionRate;
         IERC20 _anotherERC20Token;
     }
-    forAnotherERC20Token private _forAnotherERC20Token;
+    ForAnotherERC20Token private _forAnotherERC20Token;
 
     //Vesting schedule for the token
     struct VestingSchedule {
@@ -72,7 +69,7 @@ contract ICO is ReentrancyGuard, Ownable {
     uint256 private _weiRaised;
 
     // The token being sold
-    IERC20 private _token;
+    IERC20 immutable private _token;
 
     // Address where funds are collected
     //address payable private _wallet;
@@ -86,6 +83,7 @@ contract ICO is ReentrancyGuard, Ownable {
     //Releasable amounts for the vesting schedule
     mapping(address => uint256) private _releasableAmounts;
 
+    //Caps for the individual contributions
     mapping(address => uint256) private _caps;
 
     modifier onlyWhileOpen {
@@ -94,7 +92,7 @@ contract ICO is ReentrancyGuard, Ownable {
     }
 
     constructor (
-    address payable ownerWallet, 
+    //address payable ownerWallet, 
     IERC20 ownersToken, 
     ICOSettings memory ourIcoSettings, 
     VestingSchedule memory Vesting, 
@@ -103,7 +101,7 @@ contract ICO is ReentrancyGuard, Ownable {
     address[] memory Whitelist
     ) {
         require(ourIcoSettings._rate > 0, "Rate is 0");
-        require(ownerWallet != address(0), "Wallet is the zero address");
+        //require(ownerWallet != address(0), "Wallet is the zero address");
         require(address(ownersToken) != address(0), "Token is the zero address");
         require(ourIcoSettings._openingTime >= block.timestamp);
         require(ourIcoSettings._closingTime > ourIcoSettings._openingTime);
@@ -150,6 +148,10 @@ contract ICO is ReentrancyGuard, Ownable {
     function token() public view returns (IERC20) {
         return _token;
     }
+
+    function anotherERC20PaymentToken() public view returns (IERC20) {
+        return _forAnotherERC20Token._anotherERC20Token;
+    }
     
     function weiRaised() public view returns (uint256) {
         return _weiRaised;
@@ -184,124 +186,7 @@ contract ICO is ReentrancyGuard, Ownable {
     }
 
     function isWhitelisted(address account) public view returns (bool) {
-        return _whitelist[account];
-        
-    }
-
-    function balanceOf(address _contributor) public view returns(uint256 balance) {
-    
-    return _contributions[_contributor];
-
-   }
-
-    function buyTokens(address beneficiary) public payable onlyWhileOpen nonReentrant {
-        if (_icoSettings._isPrivateSale) {
-            require(isWhitelisted(beneficiary), "Address is not whitelisted");
-        }
-        
-        uint256 weiAmount = msg.value;
-        _preValidatePurchase(beneficiary, weiAmount);
-
-        // calculate token amount to be created
-        //uint256 tokens = _getTokenAmount(weiAmount);
-
-        // update state
-        _weiRaised += weiAmount;
-
-        //_processPurchase(beneficiary, tokens);
-
-        _contributions[beneficiary] = _contributions[beneficiary] + weiAmount;
-        
-        //_forwardFunds();
-       
-    }
-
-    function buyTokensWithAnotherERC20Token(address beneficiary, uint256 amount) public onlyWhileOpen nonReentrant {
-        if (_icoSettings._isPrivateSale) {
-            require(isWhitelisted(beneficiary), "Address is not whitelisted");
-        }
-        
-        uint256 weiAmount = amount * _forAnotherERC20Token._conversionRate;
-        _preValidatePurchase(beneficiary, weiAmount);
-
-        // calculate token amount to be created
-        //uint256 tokens = _getTokenAmount(weiAmount);
-
-        // update state
-        _weiRaised += weiAmount;
-
-        //_processPurchase(beneficiary, tokens);
-
-        _contributions[beneficiary] = _contributions[beneficiary] + weiAmount;
-        
-        //_forwardFunds();
-       
-    }
-
-
-    function _processPurchase(address beneficiary, uint256 tokenAmount) internal {
-        SafeERC20.safeTransfer(_token, beneficiary, tokenAmount);
-    }
-
-    function _preValidatePurchase(address beneficiary, uint256 weiAmount) internal view {
-        require(beneficiary != address(0), "Beneficiary is the zero address");
-        require(weiAmount != 0, "WeiAmount is 0");
-
-        if(_caps[beneficiary] == 0 && _icoSettings._capsIsOpen == true) {
-           require(_icoSettings._minCap < weiAmount, "Contribution is not within the cap");
-           require(_icoSettings._maxCap > weiAmount, "Contribution is not within the cap");
-        } else{
-            require(_contributions[beneficiary] + weiAmount <= _caps[beneficiary], "Contribution exceeds cap");
-        }
-        
-        require(_weiRaised + weiAmount > _icoSettings._totalSupply, "Total supply is exceeded");
-    }
-
-    function _getTokenAmount(uint256 weiAmount) internal view returns (uint256) {
-        return weiAmount * _icoSettings._rate;
-    }
-
-    /*
-    function _forwardFunds() internal {
-        _wallet.transfer(msg.value);
-    }
-    */
-
-    function isOpen() public view returns (bool) {
-        return block.timestamp >= _icoSettings._openingTime && block.timestamp <= _icoSettings._closingTime;
-    }
-
-    function startPublicSale() public {
-        require(_icoSettings._isPrivateSale, "ICO is not private");
-        require(block.timestamp >= _icoSettings._openingTime, "ICO is not open");
-        _icoSettings._isPrivateSale = false;
-    }
-
-    function addToWhitelist(address account) public {
-        require(_icoSettings._isPrivateSale, "ICO is not private");          // optional
-        require(block.timestamp < _icoSettings._openingTime, "ICO is open"); // optional
-        require(!isWhitelisted(account), "Address is already whitelisted");
-        _whitelist[account] = true;
-    }
-
-    function removeFromWhitelist(address account) public {
-        require(_icoSettings._isPrivateSale, "ICO is not private");          // optional
-        require(block.timestamp < _icoSettings._openingTime, "ICO is open"); // optional
-        require(isWhitelisted(account), "Address is not whitelisted");
-        _whitelist[account] = false;
-    }
-
-    function setCap(address account, uint256 cap) public {
-        require(_icoSettings._isPrivateSale, "ICO is not private");          // optional
-        require(block.timestamp < _icoSettings._openingTime, "ICO is open"); // optional
-        require(isWhitelisted(account), "Address is not whitelisted");
-        _caps[account] = cap;
-    }
-
-    function withdraw() public onlyOwner {
-        require(block.timestamp > _icoSettings._closingTime, "ICO is not closed");
-        uint256 balance = _token.balanceOf(address(this));
-        SafeERC20.safeTransfer(_token, owner(), balance);
+        return _whitelist[account]; 
     }
 
     //  linear vesting schedule
@@ -321,23 +206,120 @@ contract ICO is ReentrancyGuard, Ownable {
         
     }
 
+    function _preValidatePurchase(address beneficiary, uint256 weiAmount) internal view {
+        require(beneficiary != address(0), "Beneficiary is the zero address");
+        require(weiAmount != 0, "WeiAmount is 0");
+
+        if(_caps[beneficiary] == 0 && _icoSettings._capsIsOpen == true) {
+           require(_icoSettings._minCap < weiAmount, "Contribution is not within the cap");
+           require(_icoSettings._maxCap > weiAmount, "Contribution is not within the cap");
+        } else{
+            require(_contributions[beneficiary] + weiAmount <= _caps[beneficiary], "Contribution exceeds cap");
+        }
+        
+        require(_weiRaised + weiAmount < _icoSettings._totalSupply, "Total supply is exceeded");
+    }
+
+    function isOpen() public view returns (bool) {
+        return block.timestamp >= _icoSettings._openingTime && block.timestamp <= _icoSettings._closingTime;
+    }
+
+
+
+
+
+
+    function buyTokens(address beneficiary) public payable onlyWhileOpen nonReentrant {
+        if (_icoSettings._isPrivateSale) {
+            require(isWhitelisted(beneficiary), "Address is not whitelisted");
+        }
+        
+        uint256 weiAmount = msg.value;
+        _preValidatePurchase(beneficiary, weiAmount);
+
+        // update state
+        _weiRaised += weiAmount;
+
+        _contributions[beneficiary] = _contributions[beneficiary] + weiAmount;
+        _releasableAmounts[beneficiary] = _releasableAmounts[beneficiary] + weiAmount;
+        
+       
+    }
+
+    function buyTokensWithAnotherERC20Token(address beneficiary, uint256 amount) public onlyWhileOpen nonReentrant {
+        if (_icoSettings._isPrivateSale) {
+            require(isWhitelisted(beneficiary), "Address is not whitelisted");
+        }
+        
+        uint256 weiAmount = amount * _forAnotherERC20Token._conversionRate;
+        _preValidatePurchase(beneficiary, weiAmount);
+
+        // update state
+        _weiRaised += weiAmount;
+        
+        _contributions[beneficiary] = _contributions[beneficiary] + weiAmount;
+        _releasableAmounts[beneficiary] = _releasableAmounts[beneficiary] + weiAmount;
+        
+    }
+
+    function startPublicSale() public onlyOwner {
+        require(_icoSettings._isPrivateSale, "ICO is not private");
+        require(block.timestamp >= _icoSettings._openingTime, "ICO is not open");
+        _icoSettings._isPrivateSale = false;
+    }
+
+    function addToWhitelist(address account) public onlyOwner {
+        require(_icoSettings._isPrivateSale, "ICO is not private");          // optional
+        require(block.timestamp < _icoSettings._openingTime, "ICO is open"); // optional
+        require(!isWhitelisted(account), "Address is already whitelisted");
+        _whitelist[account] = true;
+    }
+
+    function removeFromWhitelist(address account) public onlyOwner {
+        require(_icoSettings._isPrivateSale, "ICO is not private");          // optional
+        require(block.timestamp < _icoSettings._openingTime, "ICO is open"); // optional
+        require(isWhitelisted(account), "Address is not whitelisted");
+        _whitelist[account] = false;
+    }
+
+    function setCap(address account, uint256 cap) public onlyOwner {
+        require(_icoSettings._isPrivateSale, "ICO is not private");          // optional
+        require(block.timestamp < _icoSettings._openingTime, "ICO is open"); // optional
+        require(isWhitelisted(account), "Address is not whitelisted");
+        _caps[account] = cap;
+    }
+
+    function withdraw() public onlyOwner {
+        require(block.timestamp > _icoSettings._closingTime, "ICO is not closed");
+        uint256 balance = _token.balanceOf(address(this));
+        SafeERC20.safeTransfer(_token, owner(), balance);
+    }
+
+
     function redeemInERC20(address payable _to) public nonReentrant {
+        require(_to != address(0), "Address is the zero address");
         require(block.timestamp > _vestingSchedule._start + _vestingSchedule._cliffDuration, "Vesting is in cliff duration or not started");
         require(_contributions[msg.sender] > 0, "Address has no contribution");
-        uint256 redeemableAmount = _getRedeemableAmount() * _forAnotherERC20Token._conversionRate;
+
+        uint256 redeemableAmount = _getRedeemableAmount() > _releasableAmounts[msg.sender] ? _releasableAmounts[msg.sender] * _forAnotherERC20Token._conversionRate : _getRedeemableAmount() * _forAnotherERC20Token._conversionRate;
+
         require(redeemableAmount > 0, "Redeemable amount is 0");
         SafeERC20.safeTransfer(_token, _to, redeemableAmount);
 
+        _releasableAmounts[msg.sender] = _releasableAmounts[msg.sender] - redeemableAmount;
     }
 
     function redeemInEther(address payable _to) public nonReentrant {
+        require(_to != address(0), "Address is the zero address");
         require(block.timestamp > _vestingSchedule._start + _vestingSchedule._cliffDuration, "Vesting is in cliff duration or not started");
         require(_contributions[msg.sender] > 0, "Address has no contribution");
-        uint256 redeemableAmount = _getRedeemableAmount();
+        uint256 redeemableAmount = _getRedeemableAmount( ) > _releasableAmounts[msg.sender] ? _releasableAmounts[msg.sender] : _getRedeemableAmount();
         require(redeemableAmount > 0, "Redeemable amount is 0");
         
-        (bool sent, bytes memory data) = _to.call{value: redeemableAmount}("");
+        (bool sent,  ) = _to.call{value: redeemableAmount}("");
         require(sent, "Failed to send Ether");
+
+        _releasableAmounts[msg.sender] = _releasableAmounts[msg.sender] - redeemableAmount;
     }
 
 }

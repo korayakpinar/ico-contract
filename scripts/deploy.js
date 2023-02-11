@@ -19,23 +19,35 @@ async function main() {
   await token.deployed();
 
   /*
-  address payable ownerWallet, 
-  IERC20 ownersToken, 
-  uint256 Rate, 
-  uint256 TotalSupply, 
-  uint256 OpeningTime, 
-  uint256 ClosingTime, 
-  bool IsPrivateSale, 
-  bool CapsIsOpen, 
-  uint256 MinCap, 
-  uint256 MaxCap, 
-  uint256 Cliff, 
-  uint256 Start, 
-  uint256 Duration, 
-  uint256 ConversionRate, 
-  IERC20 AnotherERC20Token, 
-  address[] memory Whitelist
-  */
+    IERC20 ownersToken, 
+    ICOSettings memory ourIcoSettings, 
+    VestingSchedule memory Vesting, 
+    uint256 ConversionRate, 
+    IERC20 AnotherERC20Token, 
+    address[] memory Whitelist
+  
+    struct ICOSettings {
+        uint256 _rate;
+        uint256 _totalSupply;
+        uint256 _openingTime;
+        uint256 _closingTime;
+        bool _isPrivateSale;
+        bool _capsIsOpen;
+        uint256 _minCap;
+        uint256 _maxCap;
+    }
+
+    struct VestingSchedule {
+        uint256 _cliffDuration; //in seconds
+        uint256 _start;         //unix timestamp
+        uint256 _duration;      //in seconds
+    }
+
+    struct forAnotherERC20Token {
+        uint256 _conversionRate;
+        IERC20 _anotherERC20Token;
+    }
+    */
 
   //Get one wallet address
   const [owner] = await ethers.getSigners();
@@ -43,8 +55,18 @@ async function main() {
   //Get the current time
   const now = Math.floor(Date.now() / 1000);
 
+  const icoSettings = [1, ethers.BigNumber.from("1000000000000000000"), now + 60, now + 180, false, false, 0, 0];
+  const vesting = [0, 0, 0];
+
   CrowdsaleFactory = await hre.ethers.getContractFactory("ICO");
-  crowdsale = await CrowdsaleFactory.deploy(owner.address, token.address, 1, ethers.BigNumber.from("1000000000000000000"), now + 60, now + 180, false, false, 0, 0, 0, 0, 0, 0, token.address, [owner.address]);
+  crowdsale = await CrowdsaleFactory.deploy( 
+    token.address, //token address 
+    icoSettings,  //ico settings
+    vesting, //vesting settings
+    1, //conversion rate 
+    token.address, //for another erc20 token
+    [owner.address]
+    );
   await crowdsale.deployed();
 
   console.log("Token deployed to:", token.address);
