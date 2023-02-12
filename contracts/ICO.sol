@@ -9,6 +9,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 //import "hardhat/console.sol";
 
 //TODO Add events
+//TODO Change redeem functions from the ether to the token
 
 contract ICO is ReentrancyGuard, Ownable {
 
@@ -39,31 +40,6 @@ contract ICO is ReentrancyGuard, Ownable {
         uint256 _maxCap;
     }
     ICOSettings private _icoSettings;
-
-    /*
-
-    //Opening and closing time for the ICO
-    uint256 private _openingTime;
-    uint256 private _closingTime;
-
-    //Cap for the ICO
-    bool private _capsIsOpen;
-
-    //Minimum and maximum cap
-    uint256 private _minCap;
-    uint256 private _maxCap;
-
-    //Is the ICO a private sale
-    bool private _isPrivateSale;
-
-
-    // Rate of token
-    uint256 private _rate;
-
-    // Total supply of token
-    uint256 private _totalSupply;
-
-    */
     
     // Amount of wei raised
     uint256 private _weiRaised;
@@ -92,7 +68,6 @@ contract ICO is ReentrancyGuard, Ownable {
     }
 
     constructor (
-    //address payable ownerWallet, 
     IERC20 ownersToken, 
     ICOSettings memory ourIcoSettings, 
     VestingSchedule memory Vesting, 
@@ -101,7 +76,6 @@ contract ICO is ReentrancyGuard, Ownable {
     address[] memory Whitelist
     ) {
         require(ourIcoSettings._rate > 0, "Rate is 0");
-        //require(ownerWallet != address(0), "Wallet is the zero address");
         require(address(ownersToken) != address(0), "Token is the zero address");
         require(ourIcoSettings._openingTime >= block.timestamp);
         require(ourIcoSettings._closingTime > ourIcoSettings._openingTime);
@@ -139,11 +113,6 @@ contract ICO is ReentrancyGuard, Ownable {
 
     }
 
-    /*
-    function wallet() public view returns (address) {
-        return _wallet;
-    }
-    */
     
     function token() public view returns (IERC20) {
         return _token;
@@ -201,7 +170,7 @@ contract ICO is ReentrancyGuard, Ownable {
         } else if(block.timestamp >= _vestingSchedule._start + _vestingSchedule._duration) {
             return _contributions[msg.sender] * _icoSettings._rate;
         } else if(block.timestamp >= _vestingSchedule._start + _vestingSchedule._cliffDuration){
-            return _contributions[msg.sender] * _icoSettings._rate * (block.timestamp - (_vestingSchedule._start + _vestingSchedule._cliffDuration)) / (_vestingSchedule._start + _vestingSchedule._duration - _vestingSchedule._cliffDuration);
+            return _contributions[msg.sender] * _icoSettings._rate * (block.timestamp - (_vestingSchedule._start + _vestingSchedule._cliffDuration)) / ( _vestingSchedule._duration - _vestingSchedule._cliffDuration);
         }
         
     }
@@ -295,6 +264,9 @@ contract ICO is ReentrancyGuard, Ownable {
         SafeERC20.safeTransfer(_token, owner(), balance);
     }
 
+    receive() external payable {
+        getContribution(msg.sender);
+    }
 
     function redeemInERC20(address payable _to) public nonReentrant {
         require(_to != address(0), "Address is the zero address");
@@ -317,7 +289,7 @@ contract ICO is ReentrancyGuard, Ownable {
         require(redeemableAmount > 0, "Redeemable amount is 0");
         
         (bool sent,  ) = _to.call{value: redeemableAmount}("");
-        require(sent, "Failed to send Ether");
+        require(sent == true, "Failed to send Ether");
 
         _releasableAmounts[msg.sender] = _releasableAmounts[msg.sender] - redeemableAmount;
     }

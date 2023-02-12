@@ -6,7 +6,7 @@ const { expect } = require("chai");
 
 
 // TODO: Add tests for the following:
-// 1. Test that for withdraw function works
+// 1. Test redeem function for another ERC20 
 
 
 
@@ -18,29 +18,10 @@ describe("General", function () {
   let AnotherERC20PaymentToken;
   let openingTime;
   let closingTime;
+  let vesting;
   
   describe("Deployment", function () {
-/*
-    this.beforeEach(async function () {
-      [owner] = await ethers.getSigners();
 
-      const TestTokenFactory = await ethers.getContractFactory("TestToken");
-      AnotherERC20PaymentToken = await TestTokenFactory.deploy("AnotherToken", "ATKN", ethers.BigNumber.from("1000000000000000000"));
-      await AnotherERC20PaymentToken.deployed();
-
-      const now = Math.floor(Date.now() / 1000);
-      const icoSettings = [1, ethers.BigNumber.from("1000000000000000000"), now + 60, now + 180, false, false, 0, 0];
-      const vesting = [0, 0, 0];
-      const ICOFactory = await ethers.getContractFactory("ICO");
-      icoContract = await ICOFactory.deploy(ICOtokenContract.address, icoSettings, vesting, 1, AnotherERC20PaymentToken.address, [owner.address]);
-      await icoContract.deployed();
-
-      
-      ICOtokenContract = await TestTokenFactory.deploy("Token", "TKN", ethers.BigNumber.from("1000000000000000000"));
-      await ICOtokenContract.deployed();
-      ICOtokenContract.transfer(icoContract.address, ethers.BigNumber.from("1000000000000000000"));
-    });
-*/
     
     it("Should deploy the Another ERC20 Payment Token Contract", async function () {
       [owner, account] = await ethers.getSigners();
@@ -62,7 +43,7 @@ describe("General", function () {
       openingTime = now + 60;
       closingTime = now + 100;
       const icoSettings = [1, ethers.BigNumber.from("1000000000000000000"), now + 60, now + 100, true, false, 0, 0];
-      const vesting = [20, now + 120, 40];
+      vesting = [20, now + 120, 4000];
       const ICOFactory = await ethers.getContractFactory("ICO");
       icoContract = await ICOFactory.deploy(ICOtokenContract.address, icoSettings, vesting, 1, AnotherERC20PaymentToken.address, [account.address]);
       await icoContract.deployed();
@@ -254,7 +235,21 @@ describe("General", function () {
 
   })
 
-  describe("Withdraw", function () {
+
+  describe("Vesting, Redeem and Withdraw", function () {
+    it("redeemInEther should fail if the vesting is in the cliff duration or not started", async function () {
+      
+      await expect(icoContract.connect(account).redeemInEther(account.address)).to.be.revertedWith("Vesting is in cliff duration or not started");
+      hnh.time.setNextBlockTimestamp(vesting[0]+vesting[1]+20);
+      
+      await owner.sendTransaction({to: icoContract.address, value: ethers.BigNumber.from("1000000000000000000")});
+
+      let oldBalance = await ethers.provider.getBalance(icoContract.address);
+      await icoContract.connect(account).redeemInEther(account.address);
+      let newBalance = await ethers.provider.getBalance(icoContract.address);
+      expect(newBalance).to.be.lt(oldBalance);
+    });
+
 
     it("Withdraw should work", async function () {
       hnh.time.setNextBlockTimestamp(closingTime+2);
@@ -263,7 +258,10 @@ describe("General", function () {
         expect(individualContribution).to.equal(1000000);
       });
     });
+
   });
+
+ 
 
   
 });

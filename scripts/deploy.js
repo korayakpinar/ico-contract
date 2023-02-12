@@ -55,8 +55,12 @@ async function main() {
   //Get the current time
   const now = Math.floor(Date.now() / 1000);
 
-  const icoSettings = [1, ethers.BigNumber.from("1000000000000000000"), now + 60, now + 180, false, false, 0, 0];
-  const vesting = [0, 0, 0];
+  const icoSettings = [1, ethers.BigNumber.from("1000000000000000000"), now + 60, now + 100, true, false, 0, 0];
+  vesting = [20, now + 120, 40];
+
+  console.log("_start: " + vesting[1] )
+  console.log("_cliffDuration: " + vesting[0])
+  console.log("_duration: " + vesting[2])
 
   CrowdsaleFactory = await hre.ethers.getContractFactory("ICO");
   crowdsale = await CrowdsaleFactory.deploy( 
