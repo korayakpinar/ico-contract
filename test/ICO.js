@@ -8,9 +8,6 @@ const { expect } = require("chai");
 // TODO: Add tests for the following:
 // 1. Test redeem function for another ERC20 
 
-
-
-
 describe("General", function () {
   let owner,account;
   let icoContract;

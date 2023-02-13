@@ -6,7 +6,6 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-//import "hardhat/console.sol";
 
 //TODO Add events
 //TODO Change redeem functions from the ether to the token
@@ -46,9 +45,6 @@ contract ICO is ReentrancyGuard, Ownable {
 
     // The token being sold
     IERC20 immutable private _token;
-
-    // Address where funds are collected
-    //address payable private _wallet;
 
     //Whitelist of addresses
     mapping(address => bool) private _whitelist; 
@@ -93,8 +89,6 @@ contract ICO is ReentrancyGuard, Ownable {
             _whitelist[Whitelist[i]] = true;
         }
 
-
-        //_wallet = ownerWallet;
         _token = ownersToken;
         _icoSettings. _rate = ourIcoSettings._rate;
         _icoSettings._totalSupply = ourIcoSettings._totalSupply;
@@ -112,6 +106,11 @@ contract ICO is ReentrancyGuard, Ownable {
         
 
     }
+
+
+    // -----------------------------------------
+    //              View functions
+    // -----------------------------------------
 
     
     function token() public view returns (IERC20) {
@@ -194,7 +193,9 @@ contract ICO is ReentrancyGuard, Ownable {
     }
 
 
-
+    // -----------------------------------------
+    //            External functions
+    // -----------------------------------------
 
 
 
@@ -268,6 +269,7 @@ contract ICO is ReentrancyGuard, Ownable {
         getContribution(msg.sender);
     }
 
+    //This function will be deleted probably
     function redeemInERC20(address payable _to) public nonReentrant {
         require(_to != address(0), "Address is the zero address");
         require(block.timestamp > _vestingSchedule._start + _vestingSchedule._cliffDuration, "Vesting is in cliff duration or not started");
@@ -281,6 +283,7 @@ contract ICO is ReentrancyGuard, Ownable {
         _releasableAmounts[msg.sender] = _releasableAmounts[msg.sender] - redeemableAmount;
     }
 
+    //This function will change to redeemInICOToken
     function redeemInEther(address payable _to) public nonReentrant {
         require(_to != address(0), "Address is the zero address");
         require(block.timestamp > _vestingSchedule._start + _vestingSchedule._cliffDuration, "Vesting is in cliff duration or not started");
